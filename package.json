@@ -1,0 +1,55 @@
+{
+  "name": "chainabit",
+  "version": "0.1.0",
+  "description": "Chainabit CLI — the terminal control plane for workspaces, AI, connectors, and automation",
+  "type": "commonjs",
+  "bin": {
+    "chainabit": "./bin/chainabit.cjs",
+    "cb": "./bin/chainabit.cjs"
+  },
+  "files": [
+    "bin/chainabit.cjs",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "verify": "node ./bin/chainabit.cjs --help",
+    "safety:check": "node ./scripts/check-dist-safety.mjs",
+    "pack:dry-run": "npm pack --dry-run",
+    "prepublishOnly": "node ./scripts/check-dist-safety.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "commander": "^13.1.0",
+    "dotenv": "^16.0.0"
+  },
+  "keywords": [
+    "chainabit",
+    "cli",
+    "habits",
+    "chains",
+    "bits",
+    "connectors",
+    "workspace",
+    "ai",
+    "automation",
+    "research"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chainabit/cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/chainabit/cli/issues"
+  },
+  "homepage": "https://github.com/chainabit/cli#readme",
+  "author": "Chainabit",
+  "license": "SEE LICENSE IN LICENSE",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

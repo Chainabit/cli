@@ -1,0 +1,51 @@
+Chainabit CLI — Proprietary License
+Copyright (c) 2026 Chainabit. All rights reserved.
+
+1. Definitions
+   "Software" means the Chainabit CLI distributed through this repository and
+   the npm package named "chainabit", including the compiled binary artifacts
+   (e.g. bin/chainabit.cjs), documentation, and accompanying files.
+
+2. Grant of License
+   Subject to your compliance with this License, Chainabit grants you a
+   limited, non-exclusive, non-transferable, revocable license to download,
+   install, and run the Software solely to access and use Chainabit services.
+
+3. Restrictions
+   You may NOT, in whole or in part:
+   (a) copy, reproduce, or redistribute the Software except as installed by the
+       official npm package for your own use;
+   (b) modify, adapt, translate, or create derivative works of the Software;
+   (c) reverse engineer, decompile, disassemble, deobfuscate, or otherwise
+       attempt to derive the source code or underlying ideas of the Software,
+       except to the limited extent such restriction is expressly prohibited by
+       applicable law;
+   (d) sublicense, sell, rent, lease, lend, or otherwise transfer the Software
+       to any third party;
+   (e) remove, alter, or obscure any proprietary notices.
+
+4. Source Code
+   The source code of the Software is proprietary and confidential. It is NOT
+   licensed, published, or made available under this License or any open-source
+   license. No rights to the source code are granted.
+
+5. Third-Party Components
+   The Software may include third-party open-source components that are licensed
+   under their own terms. Those terms govern your use of those components.
+
+6. Termination
+   This License terminates automatically if you breach any of its terms. Upon
+   termination you must cease all use of the Software and destroy all copies.
+
+7. No Warranty
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
+
+8. Limitation of Liability
+   IN NO EVENT SHALL CHAINABIT BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
+   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM,
+   OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+   SOFTWARE.
+
+For licensing inquiries, contact: legal@chainabit.com

@@ -1,0 +1,73 @@
+name: Publish to npm
+
+# Publishes the chainabit package to npm.
+#
+# Triggers:
+#   - Pushing a tag like v0.1.0 performs a REAL publish.
+#   - Manual run (workflow_dispatch) defaults to a DRY RUN; set dry_run=false to
+#     publish manually.
+#
+# Required repository secret:
+#   NPM_TOKEN  — an npm automation token with publish rights to "chainabit".
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (do not actually publish)"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write # create GitHub Release
+  id-token: write # npm provenance (OIDC)
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install runtime dependencies
+        run: npm install --omit=dev --no-package-lock
+
+      - name: Distribution safety check
+        run: node scripts/check-dist-safety.mjs
+
+      - name: Smoke test
+        run: node ./bin/chainabit.cjs --help
+
+      - name: Verify tag matches package version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          PKG_VERSION="v$(node -p "require('./package.json').version")"
+          TAG="${GITHUB_REF_NAME}"
+          if [ "$PKG_VERSION" != "$TAG" ]; then
+            echo "::error::Tag $TAG does not match package version $PKG_VERSION"
+            exit 1
+          fi
+
+      - name: Publish (dry run)
+        if: github.event_name == 'workflow_dispatch' && inputs.dry_run
+        run: npm publish --provenance --access public --dry-run
+
+      - name: Publish to npm
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !inputs.dry_run)
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          body_path: CHANGELOG.md

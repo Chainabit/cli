@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📚 Documentation
+    url: https://github.com/chainabit/docs
+    about: Read the Chainabit documentation and propose doc changes here.
+  - name: 🔒 Report a security vulnerability
+    url: https://github.com/chainabit/cli/security/advisories/new
+    about: Please report vulnerabilities privately — do not open a public issue.
+  - name: 💬 Questions & discussion
+    url: https://github.com/chainabit/cli/discussions
+    about: Ask questions and discuss usage with the community.
