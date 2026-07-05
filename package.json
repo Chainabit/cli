@@ -17,7 +17,8 @@
     "verify": "node ./bin/chainabit.cjs --help",
     "safety:check": "node ./scripts/check-dist-safety.mjs",
     "pack:dry-run": "npm pack --dry-run",
-    "prepublishOnly": "node ./scripts/check-dist-safety.mjs"
+    "prepublishOnly": "node ./scripts/check-dist-safety.mjs",
+    "test": "node --test test/cli.test.cjs"
   },
   "engines": {
     "node": ">=20"
