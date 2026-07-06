@@ -2,10 +2,6 @@
 
 The official Chainabit terminal control plane for workspaces, AI workflows, and connectors.
 
-> **About this repository**
-> This is the **public distribution, issue tracking, changelog, and release** repository for the Chainabit CLI.
-> The CLI **source code is private**. You install the CLI from npm; you report bugs and request features here.
-
 Use the CLI to:
 
 - sign in with the browser device-approval flow or developer tokens
