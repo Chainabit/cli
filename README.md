@@ -120,8 +120,8 @@ Run `chainabit --help` for the full, always-current command list, or `chainabit 
 
 ## Reporting bugs & requesting features
 
-- 🐛 [Report a bug](https://github.com/chainabit/cli/issues/new?template=bug_report.yml)
-- 💡 [Request a feature](https://github.com/chainabit/cli/issues/new?template=feature_request.yml)
+- 🐛 [Report a bug](https://github.com/Chainabit/cli/issues/new?template=bug_report.yml)
+- 💡 [Request a feature](https://github.com/Chainabit/cli/issues/new?template=feature_request.yml)
 - 🔒 Security issues: see [SECURITY.md](./SECURITY.md) — please do **not** open public issues for vulnerabilities.
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for how to file an effective report.

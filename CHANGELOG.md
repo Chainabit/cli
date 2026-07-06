@@ -21,5 +21,5 @@ contains only user-facing changes — no internal implementation details.
 - `ai` — run AI sessions, suggestions, and Chao conversations.
 - `--json` output mode for scripting and CI/CD.
 
-[Unreleased]: https://github.com/chainabit/cli/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/chainabit/cli/releases/tag/v0.1.0
+[Unreleased]: https://github.com/Chainabit/cli/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/Chainabit/cli/releases/tag/v0.1.0

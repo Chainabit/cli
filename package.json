@@ -41,12 +41,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/chainabit/cli.git"
+    "url": "git+https://github.com/Chainabit/cli.git"
   },
   "bugs": {
-    "url": "https://github.com/chainabit/cli/issues"
+    "url": "https://github.com/Chainabit/cli/issues"
   },
-  "homepage": "https://github.com/chainabit/cli#readme",
+  "homepage": "https://github.com/Chainabit/cli#readme",
   "author": "Chainabit",
   "license": "SEE LICENSE IN LICENSE",
   "publishConfig": {
