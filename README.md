@@ -2,6 +2,8 @@
 
 The official Chainabit terminal control plane for workspaces, AI workflows, and connectors.
 
+[npm package](https://www.npmjs.com/package/chainabit) · [chainabit.com](https://chainabit.com)
+
 Use the CLI to:
 
 - sign in with the browser device-approval flow or developer tokens
