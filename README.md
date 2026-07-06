@@ -4,7 +4,7 @@
 
 The official Chainabit terminal control plane for workspaces, AI workflows, and connectors.
 
-[npm package](https://www.npmjs.com/package/chainabit) · [chainabit.com](https://chainabit.com)
+[npm package](https://www.npmjs.com/package/@chainabit/cli) · [chainabit.com](https://chainabit.com)
 
 Use the CLI to:
 
@@ -21,13 +21,13 @@ Use the CLI to:
 Global install:
 
 ```bash
-npm install -g chainabit
+npm install -g @chainabit/cli
 ```
 
 Project-local install:
 
 ```bash
-npm install --save-dev chainabit
+npm install --save-dev @chainabit/cli
 npm exec -- chainabit --help
 ```
 
@@ -38,7 +38,7 @@ Requires Node.js **20 or newer**.
 ## Update
 
 ```bash
-npm install -g chainabit@latest
+npm install -g @chainabit/cli@latest
 chainabit --version
 ```
 

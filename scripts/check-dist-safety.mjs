@@ -12,6 +12,17 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync, existsSync } from 'node:fs';
 import { extname } from 'node:path';
 
+// The package's own scoped name is a legitimate self-reference (it appears in
+// package.json's "name" field); only OTHER @chainabit/* references indicate a
+// leaked internal package name.
+const PKG_NAME = JSON.parse(readFileSync('package.json', 'utf8')).name;
+const SELF_SCOPE_SUFFIX = PKG_NAME?.startsWith('@chainabit/')
+  ? PKG_NAME.slice('@chainabit/'.length)
+  : null;
+const PRIVATE_SCOPE_RE = SELF_SCOPE_SUFFIX
+  ? new RegExp(`@chainabit/(?!${SELF_SCOPE_SUFFIX.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b)`)
+  : /@chainabit\//;
+
 const ALLOWED_FILES = new Set([
   'package.json',
   'README.md',
@@ -28,7 +39,7 @@ const CONTENT_RULES = [
   { name: 'local absolute path (/Users)', re: /\/Users\/[A-Za-z0-9._-]+/ },
   { name: 'local absolute path (/home)', re: /\/home\/[A-Za-z0-9._-]+/ },
   { name: 'source map reference', re: /sourceMappingURL=/ },
-  { name: 'private scoped package', re: /@chainabit\// },
+  { name: 'private scoped package', re: PRIVATE_SCOPE_RE },
   { name: 'internal workspace path', re: /\bpackages\/[a-z][a-z0-9-]+/ },
   { name: 'workspace protocol reference', re: /["']workspace:[^"']*["']/ },
   // Secret-shaped strings. Documentation placeholders such as
