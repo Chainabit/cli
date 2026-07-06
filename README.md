@@ -17,13 +17,13 @@ Use the CLI to:
 Global install:
 
 ```bash
-npm install -g chainabit
+npm install -g @chainabit/cli
 ```
 
 Project-local install:
 
 ```bash
-npm install --save-dev chainabit
+npm install --save-dev @chainabit/cli
 npm exec -- chainabit --help
 ```
 
@@ -34,7 +34,7 @@ Requires Node.js **20 or newer**.
 ## Update
 
 ```bash
-npm install -g chainabit@latest
+npm install -g @chainabit/cli@latest
 chainabit --version
 ```
 
