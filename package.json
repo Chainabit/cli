@@ -18,7 +18,8 @@
     "safety:check": "node ./scripts/check-dist-safety.mjs",
     "pack:dry-run": "npm pack --dry-run",
     "prepublishOnly": "node ./scripts/check-dist-safety.mjs",
-    "test": "node --test test/cli.test.cjs"
+    "test": "node --test test/cli.test.cjs",
+    "release": "semantic-release"
   },
   "engines": {
     "node": ">=20"
@@ -26,6 +27,15 @@
   "dependencies": {
     "commander": "^13.1.0",
     "dotenv": "^16.0.0"
+  },
+  "devDependencies": {
+    "semantic-release": "^25.0.5",
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/commit-analyzer": "^13.0.1",
+    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/github": "^12.0.9",
+    "@semantic-release/npm": "^13.1.5",
+    "@semantic-release/release-notes-generator": "^14.1.1"
   },
   "keywords": [
     "chainabit",

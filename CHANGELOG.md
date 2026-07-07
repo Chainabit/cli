@@ -8,8 +8,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 This file is updated automatically by the release pipeline. It intentionally
 contains only user-facing changes — no internal implementation details.
 
-## [Unreleased]
-
 ## [0.1.0]
 
 ### Added
@@ -21,5 +19,4 @@ contains only user-facing changes — no internal implementation details.
 - `ai` — run AI sessions, suggestions, and Chao conversations.
 - `--json` output mode for scripting and CI/CD.
 
-[Unreleased]: https://github.com/Chainabit/cli/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/Chainabit/cli/releases/tag/v0.1.0
