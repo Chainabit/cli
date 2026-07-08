@@ -1,6 +1,6 @@
 {
   "name": "@chainabit/cli",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Chainabit CLI — the terminal control plane for workspaces, AI, connectors, and automation",
   "type": "commonjs",
   "bin": {
