@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 This file is updated automatically by the release pipeline. It intentionally
 contains only user-facing changes — no internal implementation details.
 
+# [1.0.0](https://github.com/Chainabit/cli/compare/v0.1.0...v1.0.0) (2026-07-08)
+
+
+* feat!: chainabit CLI v1.0.0 ([4e21bec](https://github.com/Chainabit/cli/commit/4e21bec9258bf56d91091b9206f2f73daf3b2d4e))
+
+
+### BREAKING CHANGES
+
+* chainabit CLI v1.0.0 milestone release.
+
 ## [0.1.0]
 
 ### Added
