@@ -62,7 +62,7 @@ environment variables directly or via a file:
 chainabit --env-file .env.local chain list
 
 # Or export for the whole shell session
-export CHAINABIT_BASE_URL=https://api.chainabit.com/v1
+export CHAINABIT_BASE_URL=https://api.chainabit.com/api/v1
 export CHAINABIT_TOKEN=cbt_live_...
 chainabit chain list
 ```
