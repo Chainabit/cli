@@ -28,29 +28,29 @@ chainabit chao --message "Summarize my progress this week"
 
 ## Command groups
 
-| Group | Description |
-|---|---|
-| `auth` | Login, logout, tokens, API keys, device flow |
-| `workspace` | Pin workspace context, list workspaces |
-| `account` | Account profile and settings |
-| `wallet` | Wallet management |
-| `chainy` | Chain and workflow management — list, create, manage |
-| `chain` | Chains and streaks — list, get, create, delete |
-| `bit` | Individual bits / micro-actions |
-| `contribution` | Contribution tracking and history |
-| `ai` | Chat with Chao inline |
-| `chao` | Streaming AI chat with verbose agent phases |
-| `connectors` | Install, authenticate, and execute connectors |
+| Group          | Description                                           |
+| -------------- | ----------------------------------------------------- |
+| `auth`         | Login, logout, tokens, API keys, device flow          |
+| `workspace`    | Pin workspace context, list workspaces                |
+| `account`      | Account profile and settings                          |
+| `wallet`       | Wallet management                                     |
+| `chainy`       | Chain and workflow management — list, create, manage  |
+| `chain`        | Executable workflows — list, get, create, run, delete |
+| `bit`          | Executable atomic tasks used independently or in Chains |
+| `contribution` | Contribution tracking and history                     |
+| `ai`           | Chat with Chao inline                                 |
+| `chao`         | Streaming AI chat with verbose agent phases           |
+| `connectors`   | Install, authenticate, and execute connectors         |
 
 Add `--help` to any command or subcommand for detailed usage and examples.
 
 ## Global flags
 
-| Flag | Description |
-|---|---|
-| `--json` | Machine-readable output (respected by every command) |
-| `--api-url <url>` | Override the API endpoint for this invocation |
-| `--env-file <path>` | Load env vars from a file |
+| Flag                | Description                                          |
+| ------------------- | ---------------------------------------------------- |
+| `--json`            | Machine-readable output (respected by every command) |
+| `--api-url <url>`   | Override the API endpoint for this invocation        |
+| `--env-file <path>` | Load env vars from a file                            |
 
 ## Configuration
 
