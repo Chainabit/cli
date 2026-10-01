@@ -8,7 +8,7 @@ name: Release
 # Release, and the CHANGELOG.md entry itself, then publishes to npm with
 # provenance.
 #
-# The distribution safety check and a smoke test run BEFORE semantic-release,
+# The command tests, distribution safety check, and smoke test run BEFORE semantic-release,
 # so a bad sync from the private source repo (see chainabit-api's
 # release-cli.yml, which pushes the built bin/chainabit.cjs to this repo's
 # main/development branch) fails loudly here instead of ever reaching npm.
@@ -53,6 +53,9 @@ jobs:
 
       - name: Install runtime dependencies
         run: npm install --omit=dev --no-package-lock
+
+      - name: Test every CLI command path and behavior contracts
+        run: npm test
 
       - name: Distribution safety check
         run: node scripts/check-dist-safety.mjs
