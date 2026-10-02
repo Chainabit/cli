@@ -20,6 +20,9 @@ jobs:
       - name: Install runtime dependencies
         run: npm install --omit=dev --no-package-lock
 
+      - name: Test every CLI command path and behavior contracts
+        run: npm test
+
       - name: Distribution safety check
         run: node scripts/check-dist-safety.mjs
 
