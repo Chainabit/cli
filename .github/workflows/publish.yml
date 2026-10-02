@@ -4,22 +4,19 @@ name: Release
 # push to main, using semantic-release. The version bump (major/minor/patch)
 # is derived from Conventional Commits since the last release (feat -> minor,
 # fix -> patch, "BREAKING CHANGE" -> major), so there is no manual `npm
-# version`/tag step — semantic-release creates the git tag, the GitHub
-# Release, and the CHANGELOG.md entry itself, then publishes to npm with
-# provenance.
+# version`/tag step — semantic-release creates the git tag and GitHub
+# Release, then publishes to npm with provenance. It does not push generated
+# version metadata to the protected main branch.
 #
 # The command tests, distribution safety check, and smoke test run BEFORE semantic-release,
 # so a bad sync from the private source repo (see chainabit-api's
 # release-cli.yml, which pushes the built bin/chainabit.cjs to this repo's
 # main/development branch) fails loudly here instead of ever reaching npm.
 #
-# semantic-release's own commit back to main (CHANGELOG.md + package.json)
-# includes "[skip ci]", so it does not re-trigger this workflow.
-#
 # Required repository secrets:
 #   NPM_TOKEN     — an npm automation token with publish rights to "chainabit".
-#   GITHUB_TOKEN  — provided automatically by Actions; used for the git commit,
-#                   tag, and GitHub Release that semantic-release creates.
+#   GITHUB_TOKEN  — provided automatically by Actions; used for the tag and
+#                   GitHub Release that semantic-release creates.
 
 on:
   push:
@@ -32,7 +29,7 @@ on:
         default: true
 
 permissions:
-  contents: write # semantic-release commits CHANGELOG.md/package.json, tags, and creates the GitHub Release
+  contents: write # semantic-release creates the release tag and GitHub Release
   id-token: write # npm provenance (OIDC)
   issues: write # semantic-release comments on released issues/PRs
   pull-requests: write
@@ -66,18 +63,18 @@ jobs:
           node ./bin/chainabit.cjs --version
 
       - name: Install release tooling
-        run: npm install --no-save --package-lock=false semantic-release @semantic-release/changelog @semantic-release/commit-analyzer @semantic-release/git @semantic-release/github @semantic-release/npm @semantic-release/release-notes-generator
+        run: npm install --no-save --package-lock=false semantic-release @semantic-release/commit-analyzer @semantic-release/github @semantic-release/npm @semantic-release/release-notes-generator
 
       - name: Release (dry run)
         if: github.event_name == 'workflow_dispatch' && inputs.dry_run
-        run: npx semantic-release --dry-run
+        run: ./node_modules/.bin/semantic-release --dry-run
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Release
         if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !inputs.dry_run)
-        run: npx semantic-release
+        run: ./node_modules/.bin/semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
