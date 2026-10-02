@@ -5,9 +5,14 @@ const assert = require('node:assert/strict');
 const { spawnSync } = require('node:child_process');
 const path = require('node:path');
 
-const cli = process.env.CHAINABIT_TEST_CLI_BINARY ||
-  path.resolve(__dirname, '../bin/chainabit.cjs');
-const packageVersion = require('../package.json').version;
+const installedCli = process.env.CHAINABIT_TEST_CLI_BINARY;
+const cli = installedCli
+  ? path.resolve(installedCli)
+  : path.resolve(__dirname, '../bin/chainabit.cjs');
+const packageJson = installedCli
+  ? path.resolve(path.dirname(cli), '..', 'package.json')
+  : path.resolve(__dirname, '../package.json');
+const packageVersion = require(packageJson).version;
 
 function runHelp(commandPath) {
   return spawnSync(process.execPath, [cli, ...commandPath, '--help'], {
