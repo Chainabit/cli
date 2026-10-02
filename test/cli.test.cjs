@@ -10,6 +10,35 @@ const CLI = process.env.CHAINABIT_TEST_CLI_BINARY ||
   path.resolve(__dirname, '../bin/chainabit.cjs');
 const FAKE_TOKEN = 'cbt_test_fake';
 
+describe('connector ownership scope', () => {
+  test('install exposes explicit ownership and defaults to personal', () => {
+    const result = runSync(['connectors', 'install', '--help']);
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /--scope <scope>/);
+    assert.match(result.stdout, /"personal", "team"/);
+    assert.match(result.stdout, /"personal"\)/);
+  });
+
+  test('rejects an unknown ownership before transport', () => {
+    const result = runSync(['connectors', 'install', 'slack', '--scope', 'global']);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /invalid|Allowed choices/i);
+  });
+
+  test('list forwards the selected ownership to the API', async () => {
+    let selectedScope;
+    const server = await mockServer((request, response) => {
+      selectedScope = new URL(request.url, 'http://localhost').searchParams.get('scope');
+      response.writeHead(200, { 'Content-Type': 'application/json' });
+      response.end(JSON.stringify({ data: [], meta: { total: 0 } }));
+    });
+    try {
+      await runWithMock(server, ['connectors', 'instances', 'list', '--scope', 'team', '--json']);
+      assert.equal(selectedScope, 'team');
+    } finally { server.close(); }
+  });
+});
+
 /** Run CLI synchronously (for help/version tests that don't need network). */
 function runSync(args, extraEnv = {}) {
   return spawnSync(process.execPath, [CLI, ...args], {
