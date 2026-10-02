@@ -6,7 +6,8 @@ const { spawnSync, spawn } = require('node:child_process');
 const http = require('node:http');
 const path = require('node:path');
 
-const CLI = path.resolve(__dirname, '../bin/chainabit.cjs');
+const CLI = process.env.CHAINABIT_TEST_CLI_BINARY ||
+  path.resolve(__dirname, '../bin/chainabit.cjs');
 const FAKE_TOKEN = 'cbt_test_fake';
 
 /** Run CLI synchronously (for help/version tests that don't need network). */
