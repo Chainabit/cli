@@ -39,6 +39,59 @@ describe('connector ownership scope', () => {
   });
 });
 
+describe('Business membership and invitation contracts', () => {
+  test('invitation help exposes explicit workspace grants', () => {
+    const result = runSync(['account', 'invitations', 'invite', '--help']);
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /--workspace-grant <workspace-id:role\.\.\.>/);
+  });
+
+  test('malformed workspace grants fail before transport', () => {
+    const result = runSync([
+      'account', 'invitations', 'invite', 'account_fixture',
+      '--email', 'synthetic@example.test', '--workspace-grant', 'workspace_fixture',
+    ]);
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Use <workspace-id>:<role>/);
+  });
+
+  test('invitation request preserves account and workspace roles separately', async () => {
+    let payload;
+    const server = await mockServer((request, response) => {
+      let body = '';
+      request.on('data', chunk => { body += chunk; });
+      request.on('end', () => {
+        payload = JSON.parse(body);
+        response.writeHead(201, { 'Content-Type': 'application/json' });
+        response.end(JSON.stringify({ data: { id: 'invitation_fixture' } }));
+      });
+    });
+    try {
+      const result = await runWithMock(server, [
+        'account', 'invitations', 'invite', 'account_fixture',
+        '--email', 'synthetic@example.test', '--role', 'viewer',
+        '--workspace-grant', 'workspace_one:member', 'workspace_two:analyst',
+        '--workspace-grant', 'workspace_three:viewer', '--json',
+      ]);
+      assert.equal(result.stderr, '');
+      assert.deepEqual(payload, {
+        email: 'synthetic@example.test', role: 'viewer',
+        workspaces: [
+          { targetWorkspaceId: 'workspace_one', role: 'member' },
+          { targetWorkspaceId: 'workspace_two', role: 'analyst' },
+          { targetWorkspaceId: 'workspace_three', role: 'viewer' },
+        ],
+      });
+    } finally { server.close(); }
+  });
+
+  test('removal help describes automatic Business seat reductions', () => {
+    const result = runSync(['account', 'members', 'remove', '--help']);
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Business seat reductions are queued\s+automatically/);
+  });
+});
+
 /** Run CLI synchronously (for help/version tests that don't need network). */
 function runSync(args, extraEnv = {}) {
   return spawnSync(process.execPath, [CLI, ...args], {
