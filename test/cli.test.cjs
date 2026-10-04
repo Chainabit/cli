@@ -10,6 +10,88 @@ const CLI = process.env.CHAINABIT_TEST_CLI_BINARY ||
   path.resolve(__dirname, '../bin/chainabit.cjs');
 const FAKE_TOKEN = 'cbt_test_fake';
 
+describe('connector ownership scope', () => {
+  test('install exposes explicit ownership and defaults to personal', () => {
+    const result = runSync(['connectors', 'install', '--help']);
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /--scope <scope>/);
+    assert.match(result.stdout, /"personal", "team"/);
+    assert.match(result.stdout, /"personal"\)/);
+  });
+
+  test('rejects an unknown ownership before transport', () => {
+    const result = runSync(['connectors', 'install', 'slack', '--scope', 'global']);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /invalid|Allowed choices/i);
+  });
+
+  test('list forwards the selected ownership to the API', async () => {
+    let selectedScope;
+    const server = await mockServer((request, response) => {
+      selectedScope = new URL(request.url, 'http://localhost').searchParams.get('scope');
+      response.writeHead(200, { 'Content-Type': 'application/json' });
+      response.end(JSON.stringify({ data: [], meta: { total: 0 } }));
+    });
+    try {
+      await runWithMock(server, ['connectors', 'instances', 'list', '--scope', 'team', '--json']);
+      assert.equal(selectedScope, 'team');
+    } finally { server.close(); }
+  });
+});
+
+describe('Business membership and invitation contracts', () => {
+  test('invitation help exposes explicit workspace grants', () => {
+    const result = runSync(['account', 'invitations', 'invite', '--help']);
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /--workspace-grant <workspace-id:role\.\.\.>/);
+  });
+
+  test('malformed workspace grants fail before transport', () => {
+    const result = runSync([
+      'account', 'invitations', 'invite', 'account_fixture',
+      '--email', 'synthetic@example.test', '--workspace-grant', 'workspace_fixture',
+    ]);
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Use <workspace-id>:<role>/);
+  });
+
+  test('invitation request preserves account and workspace roles separately', async () => {
+    let payload;
+    const server = await mockServer((request, response) => {
+      let body = '';
+      request.on('data', chunk => { body += chunk; });
+      request.on('end', () => {
+        payload = JSON.parse(body);
+        response.writeHead(201, { 'Content-Type': 'application/json' });
+        response.end(JSON.stringify({ data: { id: 'invitation_fixture' } }));
+      });
+    });
+    try {
+      const result = await runWithMock(server, [
+        'account', 'invitations', 'invite', 'account_fixture',
+        '--email', 'synthetic@example.test', '--role', 'viewer',
+        '--workspace-grant', 'workspace_one:member', 'workspace_two:analyst',
+        '--workspace-grant', 'workspace_three:viewer', '--json',
+      ]);
+      assert.equal(result.stderr, '');
+      assert.deepEqual(payload, {
+        email: 'synthetic@example.test', role: 'viewer',
+        workspaces: [
+          { targetWorkspaceId: 'workspace_one', role: 'member' },
+          { targetWorkspaceId: 'workspace_two', role: 'analyst' },
+          { targetWorkspaceId: 'workspace_three', role: 'viewer' },
+        ],
+      });
+    } finally { server.close(); }
+  });
+
+  test('removal help describes automatic Business seat reductions', () => {
+    const result = runSync(['account', 'members', 'remove', '--help']);
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /Business seat reductions are queued\s+automatically/);
+  });
+});
+
 /** Run CLI synchronously (for help/version tests that don't need network). */
 function runSync(args, extraEnv = {}) {
   return spawnSync(process.execPath, [CLI, ...args], {
