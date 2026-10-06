@@ -88,7 +88,7 @@ describe('Business membership and invitation contracts', () => {
   test('removal help describes automatic Business seat reductions', () => {
     const result = runSync(['account', 'members', 'remove', '--help']);
     assert.equal(result.status, 0);
-    assert.match(result.stdout, /Business seat reductions are queued\s+automatically/);
+    assert.match(result.stdout, /Business seat reductions are\s+queued\s+automatically/);
   });
 });
 
