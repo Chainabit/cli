@@ -72,3 +72,57 @@ See [`.env.example`](./.env.example) for all supported variables.
 ## License
 
 See [chainabit.com/legal](https://chainabit.com/legal) for terms of service.
+
+## Local conversations
+
+Chats started with `chainabit chao`, the interactive shell, and `chainabit code`
+keep their history on this computer. Chainabit still requires authenticated API
+access for inference, tools, models, and usage enforcement.
+
+```bash
+chainabit chao --message "Explain this project"
+chainabit sessions list
+chainabit resume <conversation-id>
+chainabit resume --last
+chainabit chao --session <conversation-id> --message "Continue"
+chainabit sessions show <conversation-id>
+```
+
+History is scoped to the API endpoint, account, workspace, and project directory.
+Switching accounts or workspaces selects separate local history. Logging out
+preserves local history; sending a message requires current authorization. Saved
+history can be reviewed offline after its scope has been established online.
+
+Closing the CLI preserves the current conversation. `/retry` reconnects the last
+execution using its original identity. Sending another message first reconciles
+an interrupted turn. During a running turn, the first Ctrl+C requests cancellation;
+a second Ctrl+C exits. A closed connection may leave server work running, so
+reconnection checks its authoritative result before submitting more work.
+
+History stays until you delete it:
+
+```bash
+chainabit sessions delete <conversation-id>
+chainabit sessions prune --before 2026-01-01
+chainabit sessions prune --before 2026-01-01 --apply
+chainabit sessions reset --yes
+```
+
+Pruning previews changes unless `--apply` is supplied. Reset deletes settled
+conversations in the current scope. Unresolved executions and unreadable files
+are preserved for recovery.
+
+Default storage locations are `~/Library/Application Support/Chainabit/cli` on
+macOS, `$XDG_DATA_HOME/chainabit/cli` (or `~/.local/share/chainabit/cli`) on Linux,
+and `%LOCALAPPDATA%\Chainabit\cli` on Windows. `CHAINABIT_DATA_DIR` selects an
+alternative local data directory. Credential storage is separate from chat files.
+
+`chainabit ai sessions` continues to manage cloud conversations. Importing an
+existing cloud conversation is explicit:
+
+```bash
+chainabit sessions import <cloud-session-id>
+```
+
+Local chat requires an API version supporting local conversation executions.
+An older API produces an upgrade error; it does not silently create a cloud chat.
