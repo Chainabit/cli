@@ -52,6 +52,24 @@ Add `--help` to any command or subcommand for detailed usage and examples.
 | `--api-url <url>`   | Override the API endpoint for this invocation        |
 | `--env-file <path>` | Load env vars from a file                            |
 
+## Creating an automation key
+
+Create the key from your signed-in human session before configuring CI:
+
+```bash
+chainabit auth keys create "github-actions" --ttl 90 --scope execution:run
+```
+
+When the server requires identity verification, the CLI asks for your account
+password without displaying it and completes any required authenticator step.
+It retries the same key request once after verification. Cancelling or providing
+incorrect verification evidence creates no key.
+
+JSON mode never prompts. Explicit verification input can be supplied with
+`--password-env`, `--password-file`, or `--password-stdin`, and `--totp-env` when
+an authenticator is required. Use the issued scoped key from your CI secret store
+for unattended jobs. The key is displayed only once when it is created.
+
 ## Configuration
 
 The CLI stores credentials in `~/.chainabit/config.json` after login. You can also supply
