@@ -85,10 +85,80 @@ describe('Business membership and invitation contracts', () => {
     } finally { server.close(); }
   });
 
+  const accountId = '00000000-0000-4000-8000-000000000001';
+  const chainerId = '00000000-0000-4000-8000-000000000002';
+  const consentId = '00000000-0000-4000-8000-000000000003';
+  const cases = [
+    { args: ['account', 'members', 'add', accountId, '--chainer', chainerId], method: 'POST', path: `/accounts/${accountId}/members`, body: { chainerId, role: 'member' } },
+    { args: ['account', 'members', 'remove', accountId, chainerId], method: 'DELETE', path: `/accounts/${accountId}/members/${chainerId}` },
+    { args: ['account', 'invitations', 'invite', accountId, '--email', 'synthetic@example.test'], method: 'POST', path: `/accounts/${accountId}/invitations`, body: { email: 'synthetic@example.test', role: 'member' } },
+  ];
+  for (const entry of cases) {
+    test(`${entry.args.slice(1, 3).join(' ')} forwards explicit billing consent`, async () => {
+      let observed;
+      const server = await mockServer((request, response) => {
+        let body = '';
+        request.on('data', chunk => { body += chunk; });
+        request.on('end', () => {
+          observed = { method: request.method, url: new URL(request.url, 'http://localhost'), body: body ? JSON.parse(body) : undefined };
+          response.writeHead(200, { 'Content-Type': 'application/json' });
+          response.end(JSON.stringify({ data: { id: chainerId } }));
+        });
+      });
+      try {
+        const result = await runWithMock(server, [...entry.args, '--billing-consent', consentId, '--json']);
+        assert.equal(result.status, 0, result.stderr);
+        assert.equal(observed.method, entry.method);
+        assert.equal(observed.url.pathname, entry.path);
+        if (entry.body) assert.deepEqual(observed.body, { ...entry.body, billingConsentId: consentId });
+        else assert.equal(observed.url.searchParams.get('billingConsentId'), consentId);
+      } finally { server.close(); }
+    });
+    test(`${entry.args.slice(1, 3).join(' ')} never invents an absent consent`, async () => {
+      let observed;
+      const server = await mockServer((request, response) => {
+        let body = '';
+        request.on('data', chunk => { body += chunk; });
+        request.on('end', () => {
+          observed = { query: new URL(request.url, 'http://localhost').searchParams, body: body ? JSON.parse(body) : undefined };
+          response.writeHead(200, { 'Content-Type': 'application/json' });
+          response.end(JSON.stringify({ data: { id: chainerId } }));
+        });
+      });
+      try {
+        const result = await runWithMock(server, [...entry.args, '--json']);
+        assert.equal(result.status, 0, result.stderr);
+        assert.equal(observed.query.has('billingConsentId'), false);
+        assert.equal(observed.body && Object.hasOwn(observed.body, 'billingConsentId'), entry.body ? false : undefined);
+      } finally { server.close(); }
+    });
+    test(`${entry.args.slice(1, 3).join(' ')} rejects unsafe consent before transport`, async () => {
+      let requests = 0;
+      const server = await mockServer((_request, response) => { requests++; response.end('{}'); });
+      try {
+        const result = await runWithMock(server, [...entry.args, '--billing-consent', '../invalid', '--json']);
+        assert.equal(requests, 0);
+        assert.equal(result.status, 1);
+        assert.match(result.stderr + result.stdout, /billing consent ID|invalid/i);
+      } finally { server.close(); }
+    });
+  }
+  test('server refusal never reports a billing mutation as successful', async () => {
+    const server = await mockServer((_request, response) => {
+      response.writeHead(403, { 'Content-Type': 'application/json' });
+      response.end(JSON.stringify({ error: { code: 'billing_consent_required', message: 'Reviewed billing consent required' } }));
+    });
+    try {
+      const result = await runWithMock(server, [...cases[0].args, '--billing-consent', consentId, '--json']);
+      assert.equal(result.status, 1);
+      assert.doesNotMatch(result.stdout, /added to account/);
+    } finally { server.close(); }
+  });
+
   test('removal help describes automatic Business seat reductions', () => {
     const result = runSync(['account', 'members', 'remove', '--help']);
     assert.equal(result.status, 0);
-    assert.match(result.stdout, /Business seat reductions are queued\s+automatically/);
+    assert.match(result.stdout, /Business seat reductions are\s+queued\s+automatically/);
   });
 });
 
@@ -130,7 +200,7 @@ function runWithMock(server, subArgs, extraEnv = {}) {
     proc.stderr.on('data', (d) => { stderr += d; });
 
     const timer = setTimeout(() => proc.kill(), 3_000);
-    proc.on('close', () => { clearTimeout(timer); resolve({ stdout, stderr }); });
+    proc.on('close', (status) => { clearTimeout(timer); resolve({ stdout, stderr, status }); });
   });
 }
 
