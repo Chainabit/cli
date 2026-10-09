@@ -514,3 +514,21 @@ describe('API key identity verification', () => {
     } finally { f.server.close(); }
   });
 });
+
+describe('scoped key authentication state', () => {
+  test('whoami validates a scoped key without requesting a human session or displaying profile data', async () => {
+    let requestedPath;
+    const server = await mockServer((req, res) => {
+      requestedPath = req.url;
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ data: { email: 'must-not-display@example.test' } }));
+    });
+    try {
+      const result = await runWithMock(server, ['auth', 'whoami', '--json'], { CHAINABIT_TOKEN: 'cbt_live_synthetic' }, 10_000);
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(requestedPath, '/auth/session/status');
+      assert.deepEqual(JSON.parse(result.stdout), { credentialType: 'developer_token', authenticated: true });
+      assert.doesNotMatch(result.stdout, /must-not-display|cbt_live_synthetic/);
+    } finally { server.close(); }
+  });
+});
