@@ -1,10 +1,14 @@
 'use strict';
 
-const { test, describe } = require('node:test');
+const { test, describe, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { spawnSync, spawn } = require('node:child_process');
 const http = require('node:http');
 const path = require('node:path');
+const { mkdtempSync, rmSync } = require('node:fs');
+const { tmpdir } = require('node:os');
+const privateConfig = mkdtempSync(path.join(tmpdir(), 'chainabit-cli-contract-'));
+after(() => rmSync(privateConfig, { recursive: true, force: true }));
 
 const CLI = process.env.CHAINABIT_TEST_CLI_BINARY ||
   path.resolve(__dirname, '../bin/chainabit.cjs');
@@ -167,7 +171,7 @@ function runSync(args, extraEnv = {}) {
   return spawnSync(process.execPath, [CLI, ...args], {
     encoding: 'utf8',
     timeout: 10_000,
-    env: { ...process.env, CHAINABIT_TOKEN: FAKE_TOKEN, ...extraEnv },
+    env: { ...process.env, CHAINABIT_CONFIG_DIR: privateConfig, CHAINABIT_TOKEN: FAKE_TOKEN, ...extraEnv },
   });
 }
 
@@ -185,7 +189,7 @@ function mockServer(handler) {
  * @param {string[]} globalArgs - args before the subcommand, e.g. ['--api-url', 'http://...']
  * @param {string[]} subArgs - subcommand + its args, e.g. ['workspace', 'list']
  */
-function runWithMock(server, subArgs, extraEnv = {}) {
+function runWithMock(server, subArgs, extraEnv = {}, timeoutMs = 3_000) {
   const port = server.address().port;
   const apiUrl = `http://127.0.0.1:${port}`;
 
@@ -193,13 +197,13 @@ function runWithMock(server, subArgs, extraEnv = {}) {
     const proc = spawn(
       process.execPath,
       [CLI, '--api-url', apiUrl, ...subArgs],
-      { env: { ...process.env, CHAINABIT_TOKEN: FAKE_TOKEN, ...extraEnv } }
+      { env: { ...process.env, CHAINABIT_CONFIG_DIR: privateConfig, CHAINABIT_TOKEN: FAKE_TOKEN, ...extraEnv } }
     );
     let stdout = '', stderr = '';
     proc.stdout.on('data', (d) => { stdout += d; });
     proc.stderr.on('data', (d) => { stderr += d; });
 
-    const timer = setTimeout(() => proc.kill(), 3_000);
+    const timer = setTimeout(() => proc.kill(), timeoutMs);
     proc.on('close', (status) => { clearTimeout(timer); resolve({ stdout, stderr, status }); });
   });
 }
@@ -424,5 +428,107 @@ describe('connectors list API requests', () => {
     } finally {
       server.close();
     }
+  });
+});
+
+describe('API key identity verification', () => {
+  const descriptor = () => ({
+    challengeId: '11111111-1111-4111-8111-111111111111',
+    actionClass: 'developer_token.create', accountId: null, resourceRef: 'bound-intent',
+    acceptableMethods: ['password'], oauthProviders: [], expiresAt: new Date(Date.now() + 300000).toISOString(),
+  });
+  async function serverFor(verify, mfa = false) {
+    const challenge = descriptor();
+    const requests = [];
+    let creationAttempts = 0;
+    const server = await mockServer((req, res) => {
+      let raw = '';
+      req.on('data', (chunk) => { raw += chunk; });
+      req.on('end', () => {
+        const body = raw ? JSON.parse(raw) : undefined;
+        requests.push({ path: req.url, body });
+        let status = 201;
+        let result;
+        if (req.url === '/auth/developer-tokens') {
+          creationAttempts++;
+          if (creationAttempts === 1) {
+            status = 403;
+            result = { error: { code: 'STEP_UP_REQUIRED', message: 'Confirm your identity', details: { challenge, continuationToken: 'must-not-escape' } } };
+          } else result = { data: { label: body.label, token: 'synthetic-key', scopes: body.scopes } };
+        } else if (req.url === '/auth/step-up/password/verify') {
+          if (!verify) { status = 403; result = { error: { code: 'INVALID_CREDENTIALS', message: 'Invalid password' } }; }
+          else result = { data: mfa ? { challenge: { ...challenge, acceptableMethods: ['totp'] } } : { proofId: challenge.challengeId } };
+        } else if (req.url === '/auth/mfa/factors') {
+          status = 200;
+          result = { data: [{ id: '22222222-2222-4222-8222-222222222222', factorType: 'totp', status: 'verified' }] };
+        } else if (req.url === '/auth/step-up/totp/verify') result = { data: { proofId: challenge.challengeId } };
+        else if (req.url === '/auth/step-up/challenges/cancel') result = { data: { cancelled: true } };
+        else { status = 404; result = { error: { message: 'Unexpected route' } }; }
+        res.writeHead(status, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result));
+      });
+    });
+    return { server, requests, challenge };
+  }
+  test('machine mode refuses prompting and cancels without exposing challenge details', async () => {
+    const f = await serverFor(true);
+    try {
+      const result = await runWithMock(f.server, ['auth', 'keys', 'create', 'github-actions', '--json'], {}, 10_000);
+      assert.equal(result.status, 1);
+      assert.equal(JSON.parse(result.stderr).code, 'STEP_UP_REQUIRED');
+      assert.doesNotMatch(result.stderr + result.stdout, /challengeId|bound-intent|must-not-escape/);
+      assert.deepEqual(f.requests.map((r) => r.path), ['/auth/developer-tokens', '/auth/step-up/challenges/cancel']);
+    } finally { f.server.close(); }
+  });
+  for (const alias of ['keys', 'developer-token']) test(`${alias} confirms identity and replays the same intent once`, async () => {
+    const f = await serverFor(true);
+    try {
+      const result = await runWithMock(f.server, ['auth', alias, 'create', 'github-actions', '--ttl', '90', '--scope', 'execution:run', '--password-env', 'CLI_CONTRACT_PASSWORD', '--json'], { CLI_CONTRACT_PASSWORD: 'synthetic-password' }, 10_000);
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(JSON.parse(result.stdout).label, 'github-actions');
+      assert.deepEqual(f.requests.map((r) => r.path), ['/auth/developer-tokens', '/auth/step-up/password/verify', '/auth/developer-tokens']);
+      assert.deepEqual(f.requests[0].body, f.requests[2].body);
+      assert.equal(f.requests[1].body.password, 'synthetic-password');
+      assert.equal(f.requests[1].body.resourceRef, f.challenge.resourceRef);
+      assert.doesNotMatch(result.stdout + result.stderr, /synthetic-password|challengeId|bound-intent/);
+    } finally { f.server.close(); }
+  });
+  test('invalid evidence cancels and never retries key creation', async () => {
+    const f = await serverFor(false);
+    try {
+      const result = await runWithMock(f.server, ['auth', 'keys', 'create', 'github-actions', '--password-env', 'CLI_CONTRACT_PASSWORD', '--json'], { CLI_CONTRACT_PASSWORD: 'incorrect-password' }, 10_000);
+      assert.equal(result.status, 1);
+      assert.equal(JSON.parse(result.stderr).code, 'INVALID_CREDENTIALS');
+      assert.equal(f.requests.filter((r) => r.path === '/auth/developer-tokens').length, 1);
+      assert.equal(f.requests.at(-1).path, '/auth/step-up/challenges/cancel');
+    } finally { f.server.close(); }
+  });
+  test('MFA completes only after the requested authenticator has verified', async () => {
+    const f = await serverFor(true, true);
+    try {
+      const result = await runWithMock(f.server, ['auth', 'keys', 'create', 'github-actions', '--password-env', 'CLI_CONTRACT_PASSWORD', '--totp-env', 'CLI_CONTRACT_TOTP', '--json'], { CLI_CONTRACT_PASSWORD: 'synthetic-password', CLI_CONTRACT_TOTP: '123456' }, 10_000);
+      assert.equal(result.status, 0, result.stderr);
+      assert.deepEqual(f.requests.map((r) => r.path), ['/auth/developer-tokens', '/auth/step-up/password/verify', '/auth/mfa/factors', '/auth/step-up/totp/verify', '/auth/developer-tokens']);
+      assert.equal(f.requests[3].body.code, '123456');
+      assert.equal(f.requests[3].body.resourceRef, f.challenge.resourceRef);
+    } finally { f.server.close(); }
+  });
+});
+
+describe('scoped key authentication state', () => {
+  test('whoami validates a scoped key without requesting a human session or displaying profile data', async () => {
+    let requestedPath;
+    const server = await mockServer((req, res) => {
+      requestedPath = req.url;
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ data: { email: 'must-not-display@example.test' } }));
+    });
+    try {
+      const result = await runWithMock(server, ['auth', 'whoami', '--json'], { CHAINABIT_TOKEN: 'cbt_live_synthetic' }, 10_000);
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(requestedPath, '/auth/session/status');
+      assert.deepEqual(JSON.parse(result.stdout), { credentialType: 'developer_token', authenticated: true });
+      assert.doesNotMatch(result.stdout, /must-not-display|cbt_live_synthetic/);
+    } finally { server.close(); }
   });
 });
