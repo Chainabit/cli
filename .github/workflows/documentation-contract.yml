@@ -1,0 +1,49 @@
+name: Public command documentation
+
+on:
+  push:
+    branches: [main, development]
+  pull_request:
+    branches: [main, development]
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  reference:
+    name: CLI command reference coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install only CLI runtime dependencies
+        run: npm install --omit=dev --ignore-scripts --no-package-lock --no-audit --no-fund
+      - name: Resolve the coordinated documentation review branch
+        env:
+          REVIEW_BRANCH: ${{ github.head_ref || github.ref_name }}
+        run: |
+          DOCS_REFERENCE_REF=development
+          case "$REVIEW_BRANCH" in
+            feature/*|fix/*|refactor/*|hotfix/*)
+              if git ls-remote --exit-code --heads https://github.com/Chainabit/docs.git "refs/heads/$REVIEW_BRANCH" > /dev/null; then
+                DOCS_REFERENCE_REF="$REVIEW_BRANCH"
+              fi
+              ;;
+          esac
+          echo "DOCS_REFERENCE_REF=$DOCS_REFERENCE_REF" >> "$GITHUB_ENV"
+      - uses: actions/checkout@v4
+        with:
+          repository: Chainabit/docs
+          ref: ${{ env.DOCS_REFERENCE_REF }}
+          path: .reference-docs
+          persist-credentials: false
+      - name: Require reviewed syntax and bilingual documentation
+        # This job runs before semantic-release assigns/publishes a version,
+        # including on main. Check the reviewed candidate against development;
+        # the docs workflow separately verifies the actual npm stable release.
+        working-directory: .reference-docs
+        run: node scripts/sync-cli-reference.mjs --check --cli ../bin/chainabit.cjs --edition development --output "$RUNNER_TEMP/cli-reference.json"
