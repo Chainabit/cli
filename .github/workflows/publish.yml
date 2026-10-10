@@ -35,7 +35,12 @@ permissions:
   pull-requests: write
 
 jobs:
+  documentation-contract:
+    uses: ./.github/workflows/documentation-contract.yml
+    permissions:
+      contents: read
   release:
+    needs: documentation-contract
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
