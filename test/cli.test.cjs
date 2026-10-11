@@ -14,6 +14,91 @@ const CLI = process.env.CHAINABIT_TEST_CLI_BINARY ||
   path.resolve(__dirname, '../bin/chainabit.cjs');
 const FAKE_TOKEN = 'cbt_test_fake';
 
+describe('authoritative usage quota display', () => {
+  const summary = {
+    status: 'active', serverTime: '2026-10-11T12:00:00Z', cycleId: 'quota-cycle',
+    windows: [
+      { kind: 'weekly', remainingPercent: 73, reservedPercent: 2, resetsAt: '2026-10-15T18:00:00Z' },
+      { kind: 'five_hour', remainingPercent: 91, reservedPercent: 0, resetsAt: null },
+    ],
+    resetGrants: [{ kind: 'weekly', usesRemaining: 2 }],
+  };
+  test('JSON preserves server percentages and timestamps through the installed command', async () => {
+    let observed;
+    const server = await mockServer((req, res) => {
+      observed = req.url;
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ data: summary }));
+    });
+    try {
+      const result = await runWithMock(server, ['wallet', 'usage', '--json']);
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(observed, '/billing/usage-summary');
+      assert.deepEqual(JSON.parse(result.stdout), summary);
+    } finally { server.close(); }
+  });
+  test('human output distinguishes holds, resets and an unstarted window', async () => {
+    const server = await mockServer((_req, res) => {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ data: summary }));
+    });
+    try {
+      const result = await runWithMock(server, ['wallet', 'usage']);
+      assert.equal(result.status, 0, result.stderr);
+      assert.match(result.stdout, /Remaining \(%\)/);
+      assert.match(result.stdout, /Reserved \(%\)/);
+      assert.match(result.stdout, /2026-10-15T18:00:00Z/);
+      assert.match(result.stdout, /Starts with first authorized usage/);
+      assert.match(result.stdout, /Banked Reset/);
+    } finally { server.close(); }
+  });
+  test('malformed meters and API refusal never print a full allowance', async () => {
+    for (const status of [200, 403]) {
+      const server = await mockServer((_req, res) => {
+        res.writeHead(status, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(status === 200
+          ? { data: { ...summary, windows: [{ ...summary.windows[0], remainingPercent: 150 }] } }
+          : { error: { code: 'forbidden', message: 'Account unavailable' } }));
+      });
+      try {
+        const result = await runWithMock(server, ['wallet', 'usage', '--json']);
+        assert.equal(result.status, 1);
+        assert.doesNotMatch(result.stdout, /"remainingPercent"/);
+      } finally { server.close(); }
+    }
+  });
+});
+
+describe('purchased credit display', () => {
+  for (const purchasedCreditsRemaining of ['7.2501', null, undefined]) {
+    test(`wallet balance preserves ${String(purchasedCreditsRemaining)} without displaying pooled credits`, async () => {
+      const server = await mockServer((_req, res) => {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ data: { balanceCredits: '98765', purchasedCreditsRemaining } }));
+      });
+      try {
+        const result = await runWithMock(server, ['wallet', 'balance']);
+        assert.equal(result.status, 0, result.stderr);
+        assert.match(result.stdout, /Purchased Credits Remaining/);
+        assert.match(result.stdout, purchasedCreditsRemaining ? /7\.2501/ : /Unavailable/);
+        assert.doesNotMatch(result.stdout, /98765/);
+      } finally { server.close(); }
+    });
+  }
+  test('JSON retains the compatible wallet response', async () => {
+    const payload = { balanceCredits: '98765', purchasedCreditsRemaining: '7.2501' };
+    const server = await mockServer((_req, res) => {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ data: payload }));
+    });
+    try {
+      const result = await runWithMock(server, ['wallet', 'balance', '--json']);
+      assert.equal(result.status, 0, result.stderr);
+      assert.deepEqual(JSON.parse(result.stdout), payload);
+    } finally { server.close(); }
+  });
+});
+
 describe('connector ownership scope', () => {
   test('install exposes explicit ownership and defaults to personal', () => {
     const result = runSync(['connectors', 'install', '--help']);

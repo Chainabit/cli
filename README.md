@@ -44,6 +44,17 @@ chainabit chao --message "Summarize my progress this week"
 
 Add `--help` to any command or subcommand for detailed usage and examples.
 
+### Usage limits
+
+Run `chainabit wallet usage` to see remaining weekly and five-hour percentages,
+reserved usage, server reset times, and available banked resets. Add `--json`
+for the server summary. Accounts awaiting quota configuration show an unavailable
+meter rather than an estimated allowance.
+
+Run `chainabit wallet balance` to see your recorded purchased credits. An
+unavailable amount stays unavailable; it is not shown as zero. Available usage
+also depends on the limits shown by `chainabit wallet usage`.
+
 ## Global flags
 
 | Flag                | Description                                          |
