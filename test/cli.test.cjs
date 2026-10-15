@@ -18,10 +18,10 @@ describe('authoritative usage quota display', () => {
   const summary = {
     status: 'active', serverTime: '2026-10-11T12:00:00Z', cycleId: 'quota-cycle',
     windows: [
-      { kind: 'weekly', remainingPercent: 73, reservedPercent: 2, resetsAt: '2026-10-15T18:00:00Z' },
-      { kind: 'five_hour', remainingPercent: 91, reservedPercent: 0, resetsAt: null },
+      { kind: 'weekly', usedPercent: 25, remainingPercent: 73, reservedPercent: 2, resetsAt: '2026-10-15T18:00:00Z' },
+      { kind: 'five_hour', usedPercent: 9, remainingPercent: 91, reservedPercent: 0, resetsAt: null },
     ],
-    resetGrants: [{ kind: 'weekly', usesRemaining: 2 }],
+    resetGrants: [{ kind: 'weekly', usesRemaining: 2, eligible: true, expiresAt: null }],
   };
   test('JSON preserves server percentages and timestamps through the installed command', async () => {
     let observed;
@@ -616,4 +616,29 @@ describe('scoped key authentication state', () => {
       assert.doesNotMatch(result.stdout, /must-not-display|cbt_live_synthetic/);
     } finally { server.close(); }
   });
+});
+
+
+describe('email registration request contract', () => {
+  for (const legacy of [[], ['--identifier', 'legacy-requested-name']]) {
+    test(`registration submits accepted fields and leaves identity setup to verification (${legacy.length})`, async () => {
+      let observed;
+      const server = await mockServer((request, response) => {
+        let body = '';
+        request.on('data', chunk => { body += chunk; });
+        request.on('end', () => {
+          observed = { path: request.url, body: JSON.parse(body) };
+          response.writeHead(201, { 'Content-Type': 'application/json' });
+          response.end(JSON.stringify({ data: { email: 'synthetic@example.test', requiresEmailVerification: true } }));
+        });
+      });
+      try {
+        const result = await runWithMock(server, ['auth', 'register', '--email', 'synthetic@example.test', '--password-env', 'CLI_CONTRACT_REGISTRATION_PASSWORD', ...legacy, '--json'], { CLI_CONTRACT_REGISTRATION_PASSWORD: 'Synthetic-registration-only-2026!' }, 10000);
+        assert.equal(result.status, 0, result.stderr);
+        assert.deepEqual(observed, { path: '/auth/register', body: { email: 'synthetic@example.test', password: 'Synthetic-registration-only-2026!' } });
+        assert.equal(JSON.parse(result.stdout).registered, true);
+        assert.equal(result.stdout.includes('Synthetic-registration-only-2026!'), false);
+      } finally { server.close(); }
+    });
+  }
 });
