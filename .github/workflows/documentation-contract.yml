@@ -7,6 +7,9 @@ on:
     branches: [main, development]
   workflow_dispatch:
   workflow_call:
+    secrets:
+      DOCS_REFERENCE_TOKEN:
+        required: true
 
 permissions:
   contents: read
@@ -25,19 +28,43 @@ jobs:
       - name: Resolve the coordinated documentation review branch
         env:
           REVIEW_BRANCH: ${{ github.head_ref || github.ref_name }}
+          GH_TOKEN: ${{ secrets.DOCS_REFERENCE_TOKEN }}
         run: |
-          DOCS_REFERENCE_REF=development
-          case "$REVIEW_BRANCH" in
-            feature/*|fix/*|refactor/*|hotfix/*)
-              if git ls-remote --exit-code --heads https://github.com/Chainabit/docs.git "refs/heads/$REVIEW_BRANCH" > /dev/null; then
-                DOCS_REFERENCE_REF="$REVIEW_BRANCH"
-              fi
-              ;;
-          esac
-          echo "DOCS_REFERENCE_REF=$DOCS_REFERENCE_REF" >> "$GITHUB_ENV"
+          node --input-type=module <<'NODE'
+          import { appendFileSync } from 'node:fs';
+
+          const token = process.env.GH_TOKEN;
+          if (!token) {
+            console.error('::error::Configure DOCS_REFERENCE_TOKEN with read-only Contents access to Chainabit/docs.');
+            process.exit(1);
+          }
+          const branch = process.env.REVIEW_BRANCH ?? '';
+          if (/[\r\n]/.test(branch)) throw new Error('Invalid documentation review branch');
+          let ref = 'development';
+          if (/^(feature|fix|refactor|hotfix)\//.test(branch)) {
+            let response;
+            try {
+              response = await fetch(`https://api.github.com/repos/Chainabit/docs/git/matching-refs/heads/${encodeURIComponent(branch)}`, {
+                headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' },
+                redirect: 'error',
+                signal: AbortSignal.timeout(15_000),
+              });
+            } catch {
+              throw new Error('Documentation branch lookup unavailable; retry the reference check.');
+            }
+            if (!response.ok) throw new Error(`Documentation branch lookup failed (HTTP ${response.status}); verify DOCS_REFERENCE_TOKEN access.`);
+            const refs = await response.json().catch(() => {
+              throw new Error('Invalid documentation branch lookup response');
+            });
+            if (!Array.isArray(refs)) throw new Error('Invalid documentation branch lookup response');
+            if (refs.some(candidate => candidate?.ref === `refs/heads/${branch}`)) ref = branch;
+          }
+          appendFileSync(process.env.GITHUB_ENV, `DOCS_REFERENCE_REF=${ref}\n`);
+          NODE
       - uses: actions/checkout@v4
         with:
           repository: Chainabit/docs
+          token: ${{ secrets.DOCS_REFERENCE_TOKEN }}
           ref: ${{ env.DOCS_REFERENCE_REF }}
           path: .reference-docs
           persist-credentials: false
