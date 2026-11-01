@@ -48,6 +48,8 @@ jobs:
     uses: ./.github/workflows/documentation-contract.yml
     permissions:
       contents: read
+    secrets:
+      DOCS_REFERENCE_SSH_KEY: ${{ secrets.DOCS_REFERENCE_SSH_KEY }}
   release:
     needs: documentation-contract
     runs-on: ubuntu-latest
