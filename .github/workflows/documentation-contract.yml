@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
   workflow_call:
     secrets:
-      DOCS_REFERENCE_TOKEN:
+      DOCS_REFERENCE_SSH_KEY:
         required: true
 
 permissions:
@@ -26,45 +26,36 @@ jobs:
       - name: Install only CLI runtime dependencies
         run: npm install --omit=dev --ignore-scripts --no-package-lock --no-audit --no-fund
       - name: Resolve the coordinated documentation review branch
+        # Chainabit/docs is private. Access is a read-only deploy key on that repository only
+        # (secret DOCS_REFERENCE_SSH_KEY); GitHub's host keys come from its HTTPS meta API.
         env:
           REVIEW_BRANCH: ${{ github.head_ref || github.ref_name }}
-          GH_TOKEN: ${{ secrets.DOCS_REFERENCE_TOKEN }}
+          DOCS_REFERENCE_SSH_KEY: ${{ secrets.DOCS_REFERENCE_SSH_KEY }}
         run: |
-          node --input-type=module <<'NODE'
-          import { appendFileSync } from 'node:fs';
-
-          const token = process.env.GH_TOKEN;
-          if (!token) {
-            console.error('::error::Configure DOCS_REFERENCE_TOKEN with read-only Contents access to Chainabit/docs.');
-            process.exit(1);
-          }
-          const branch = process.env.REVIEW_BRANCH ?? '';
-          if (/[\r\n]/.test(branch)) throw new Error('Invalid documentation review branch');
-          let ref = 'development';
-          if (/^(feature|fix|refactor|hotfix)\//.test(branch)) {
-            let response;
-            try {
-              response = await fetch(`https://api.github.com/repos/Chainabit/docs/git/matching-refs/heads/${encodeURIComponent(branch)}`, {
-                headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' },
-                redirect: 'error',
-                signal: AbortSignal.timeout(15_000),
-              });
-            } catch {
-              throw new Error('Documentation branch lookup unavailable; retry the reference check.');
-            }
-            if (!response.ok) throw new Error(`Documentation branch lookup failed (HTTP ${response.status}); verify DOCS_REFERENCE_TOKEN access.`);
-            const refs = await response.json().catch(() => {
-              throw new Error('Invalid documentation branch lookup response');
-            });
-            if (!Array.isArray(refs)) throw new Error('Invalid documentation branch lookup response');
-            if (refs.some(candidate => candidate?.ref === `refs/heads/${branch}`)) ref = branch;
-          }
-          appendFileSync(process.env.GITHUB_ENV, `DOCS_REFERENCE_REF=${ref}\n`);
-          NODE
+          if [ -z "$DOCS_REFERENCE_SSH_KEY" ]; then
+            echo '::error::Configure DOCS_REFERENCE_SSH_KEY: the private half of a read-only deploy key on Chainabit/docs.'
+            exit 1
+          fi
+          case "$REVIEW_BRANCH" in
+            *$'\n'*|*$'\r'*) echo '::error::Invalid documentation review branch'; exit 1 ;;
+          esac
+          ref=development
+          if printf '%s' "$REVIEW_BRANCH" | grep -Eq '^(feature|fix|refactor|hotfix)/'; then
+            dir="$(mktemp -d)"
+            trap 'rm -rf "$dir"' EXIT
+            ( umask 077; printf '%s\n' "$DOCS_REFERENCE_SSH_KEY" > "$dir/key" )
+            curl -fsS --max-time 15 https://api.github.com/meta | jq -r '.ssh_keys[] | "github.com " + .' > "$dir/known_hosts" \
+              || { echo '::error::Documentation branch lookup unavailable; retry the reference check.'; exit 1; }
+            heads="$(GIT_SSH_COMMAND="ssh -i $dir/key -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$dir/known_hosts" \
+              timeout 30 git ls-remote --heads git@github.com:Chainabit/docs.git)" \
+              || { echo '::error::Documentation branch lookup failed; verify the DOCS_REFERENCE_SSH_KEY deploy key.'; exit 1; }
+            if printf '%s\n' "$heads" | awk '{print $2}' | grep -qxF "refs/heads/$REVIEW_BRANCH"; then ref="$REVIEW_BRANCH"; fi
+          fi
+          echo "DOCS_REFERENCE_REF=$ref" >> "$GITHUB_ENV"
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           repository: Chainabit/docs
-          token: ${{ secrets.DOCS_REFERENCE_TOKEN }}
+          ssh-key: ${{ secrets.DOCS_REFERENCE_SSH_KEY }}
           ref: ${{ env.DOCS_REFERENCE_REF }}
           path: .reference-docs
           persist-credentials: false
