@@ -44,17 +44,6 @@ chainabit chao --message "Summarize my progress this week"
 
 Add `--help` to any command or subcommand for detailed usage and examples.
 
-### Usage limits
-
-Run `chainabit wallet usage` to see remaining weekly and five-hour percentages,
-reserved usage, server reset times, and available banked resets. Add `--json`
-for the server summary. Accounts awaiting quota configuration show an unavailable
-meter rather than an estimated allowance.
-
-Run `chainabit wallet balance` to see your recorded purchased credits. An
-unavailable amount stays unavailable; it is not shown as zero. Available usage
-also depends on the limits shown by `chainabit wallet usage`.
-
 ## Global flags
 
 | Flag                | Description                                          |
@@ -98,10 +87,6 @@ chainabit chain list
 
 See [`.env.example`](./.env.example) for all supported variables.
 
-## License
-
-See [chainabit.com/legal](https://chainabit.com/legal) for terms of service.
-
 ## Local conversations
 
 Chats started with `chainabit chao`, the interactive shell, and `chainabit code`
@@ -126,7 +111,7 @@ Closing the CLI preserves the current conversation. `/retry` reconnects the last
 execution using its original identity. Sending another message first reconciles
 an interrupted turn. During a running turn, the first Ctrl+C requests cancellation;
 a second Ctrl+C exits. A closed connection may leave server work running, so
-reconnection checks its authoritative result before submitting more work.
+reconnect before retrying to reconcile the server execution state.
 
 History stays until you delete it:
 
@@ -142,9 +127,10 @@ conversations in the current scope. Unresolved executions and unreadable files
 are preserved for recovery.
 
 Default storage locations are `~/Library/Application Support/Chainabit/cli` on
-macOS, `$XDG_DATA_HOME/chainabit/cli` (or `~/.local/share/chainabit/cli`) on Linux,
-and `%LOCALAPPDATA%\Chainabit\cli` on Windows. `CHAINABIT_DATA_DIR` selects an
-alternative local data directory. Credential storage is separate from chat files.
+macOS, `%LOCALAPPDATA%\\Chainabit\\cli` on Windows, and
+`$XDG_DATA_HOME/chainabit/cli` (or `~/.local/share/chainabit/cli`) on Linux.
+`CHAINABIT_DATA_DIR` selects an alternative local data directory. Credential
+storage is separate from chat files.
 
 `chainabit ai sessions` continues to manage cloud conversations. Importing an
 existing cloud conversation is explicit:
@@ -155,3 +141,7 @@ chainabit sessions import <cloud-session-id>
 
 Local chat requires an API version supporting local conversation executions.
 An older API produces an upgrade error; it does not silently create a cloud chat.
+
+## License
+
+See [chainabit.com/legal](https://chainabit.com/legal) for terms of service.
