@@ -62,7 +62,7 @@ describe('authoritative usage quota display', () => {
       });
       try {
         const result = await runWithMock(server, ['wallet', 'usage', '--json']);
-        assert.equal(result.status, 1);
+        assert.equal(result.status, status === 403 ? 4 : 1);
         assert.doesNotMatch(result.stdout, /"remainingPercent"/);
       } finally { server.close(); }
     }
@@ -140,7 +140,7 @@ describe('Business membership and invitation contracts', () => {
       'account', 'invitations', 'invite', 'account_fixture',
       '--email', 'synthetic@example.test', '--workspace-grant', 'workspace_fixture',
     ]);
-    assert.equal(result.status, 1);
+    assert.equal(result.status, 2);
     assert.match(result.stderr, /Use <workspace-id>:<role>/);
   });
 
@@ -227,7 +227,7 @@ describe('Business membership and invitation contracts', () => {
       try {
         const result = await runWithMock(server, [...entry.args, '--billing-consent', '../invalid', '--json']);
         assert.equal(requests, 0);
-        assert.equal(result.status, 1);
+        assert.equal(result.status, 2);
         assert.match(result.stderr + result.stdout, /billing consent ID|invalid/i);
       } finally { server.close(); }
     });
@@ -239,7 +239,7 @@ describe('Business membership and invitation contracts', () => {
     });
     try {
       const result = await runWithMock(server, [...cases[0].args, '--billing-consent', consentId, '--json']);
-      assert.equal(result.status, 1);
+      assert.equal(result.status, 4);
       assert.doesNotMatch(result.stdout, /added to account/);
     } finally { server.close(); }
   });
@@ -559,7 +559,7 @@ describe('API key identity verification', () => {
     const f = await serverFor(true);
     try {
       const result = await runWithMock(f.server, ['auth', 'keys', 'create', 'github-actions', '--json'], {}, 10_000);
-      assert.equal(result.status, 1);
+      assert.equal(result.status, 4);
       assert.equal(JSON.parse(result.stderr).code, 'STEP_UP_REQUIRED');
       assert.doesNotMatch(result.stderr + result.stdout, /challengeId|bound-intent|must-not-escape/);
       assert.deepEqual(f.requests.map((r) => r.path), ['/auth/developer-tokens', '/auth/step-up/challenges/cancel']);
@@ -582,7 +582,7 @@ describe('API key identity verification', () => {
     const f = await serverFor(false);
     try {
       const result = await runWithMock(f.server, ['auth', 'keys', 'create', 'github-actions', '--password-env', 'CLI_CONTRACT_PASSWORD', '--json'], { CLI_CONTRACT_PASSWORD: 'incorrect-password' }, 10_000);
-      assert.equal(result.status, 1);
+      assert.equal(result.status, 4);
       assert.equal(JSON.parse(result.stderr).code, 'INVALID_CREDENTIALS');
       assert.equal(f.requests.filter((r) => r.path === '/auth/developer-tokens').length, 1);
       assert.equal(f.requests.at(-1).path, '/auth/step-up/challenges/cancel');
