@@ -7,14 +7,14 @@ name: Release
 # publishes to npm with provenance. It does not push generated version
 # metadata to the protected main branch.
 #
-# Publishing is a deliberate human action:
-#   - push to main: runs the documentation contract, command tests,
-#     distribution safety check, smoke test and `semantic-release --dry-run`
-#     (reports the next version). It NEVER publishes.
-#   - workflow_dispatch with dry_run=false: the only path that runs the real
-#     `semantic-release` and publishes to npm.
-#   - workflow_dispatch with dry_run=true (default): same validation and dry run
-#     as a push.
+# Every push to main releases (owner decision 2026-11-02): main is the release branch.
+#   - push to main: runs the documentation contract, command tests, distribution
+#     safety check and smoke test, then `semantic-release`, which publishes only
+#     when the commits since the last release call for one (feat, fix, BREAKING).
+#   - workflow_dispatch with dry_run=true (default): the same gates and a dry run.
+#   - workflow_dispatch with dry_run=false: a manual release of main.
+# npm authentication is trusted publishing (OIDC, `id-token: write` below) for
+# Chainabit/cli publish.yml; NPM_TOKEN is only a fallback.
 #
 # The command tests, distribution safety check, and smoke test run BEFORE
 # semantic-release, so a bad sync from the private source repo (see
@@ -33,7 +33,7 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: "Dry run (analyze + report the next version). Set to false to publish to npm; pushes to main never publish."
+        description: "Dry run (analyze + report the next version). Set to false to publish to npm; a push to main always releases."
         type: boolean
         default: true
 
@@ -84,14 +84,14 @@ jobs:
         run: npm install --no-save --package-lock=false semantic-release@25.0.9 @semantic-release/commit-analyzer@13.0.1 @semantic-release/github@12.0.10 @semantic-release/npm@13.2.0 @semantic-release/release-notes-generator@14.1.1
 
       - name: Release (dry run)
-        if: github.event_name == 'push' || inputs.dry_run
+        if: github.event_name == 'workflow_dispatch' && inputs.dry_run
         run: ./node_modules/.bin/semantic-release --dry-run
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Release
-        if: github.event_name == 'workflow_dispatch' && !inputs.dry_run
+        if: github.event_name == 'push' || !inputs.dry_run
         run: ./node_modules/.bin/semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
