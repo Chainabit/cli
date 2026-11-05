@@ -84,3 +84,45 @@ test('the binary reports the package version exactly', () => {
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stdout.trim(), packageVersion);
 });
+
+test('the published binary preserves the chainy hierarchy parser contract', async (t) => {
+  const { createCliProgram } = require(cli);
+  const chainy = createCliProgram().commands.find((command) => command.name() === 'chainy');
+  assert.ok(chainy, 'chainy command must be registered');
+
+  // Inspect the real exported parser without executing actions or contacting an API.
+  // These are contract assertions, not a generated inventory or help snapshot.
+  const cases = [
+    { command: 'create', flags: '--parent <id>', conflicts: [] },
+    { command: 'update', flags: '--parent <id|none>', conflicts: ['title', 'description'] },
+    { command: 'list', flags: '--parent <id>', conflicts: ['root'] },
+    { command: 'list', flags: '--root', conflicts: ['parent'] },
+    {
+      command: 'delete', flags: '--children <strategy>', conflicts: [],
+      choices: ['refuse', 'reparent', 'trash-subtree'], defaultValue: 'refuse',
+    },
+  ];
+
+  for (const entry of cases) {
+    await t.test(`chainy ${entry.command} ${entry.flags}`, () => {
+      const command = chainy.commands.find((candidate) => candidate.name() === entry.command);
+      assert.ok(command, `chainy ${entry.command} must be registered`);
+      const long = entry.flags.split(' ')[0];
+      const option = command.options.find((candidate) => candidate.long === long);
+      assert.ok(option, `chainy ${entry.command} must expose ${entry.flags}`);
+      assert.equal(option.flags, entry.flags);
+      assert.equal(Boolean(option.hidden), false);
+      assert.equal(Boolean(option.required), entry.flags.includes('<'));
+      assert.equal(Boolean(option.optional), false);
+      assert.equal(Boolean(option.mandatory), false);
+      assert.deepEqual(option.argChoices ?? [], entry.choices ?? []);
+      assert.equal(option.defaultValue, entry.defaultValue);
+      assert.deepEqual([...option.conflictsWith].sort(), [...entry.conflicts].sort());
+
+      const result = runHelp(['chainy', entry.command]);
+      assert.equal(result.error, undefined, result.error?.message);
+      assert.equal(result.status, 0, result.stderr);
+      assert.ok(result.stdout.includes(entry.flags), `${entry.flags} must appear in public help`);
+    });
+  }
+});
