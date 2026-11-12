@@ -1,0 +1,59 @@
+name: Release gate
+
+# May the bundle in this tree go to main, and so to npm?
+#
+# The CLI bundle is built from a newer tree than the API production runs. This
+# gate (scripts/release-gate.mjs) fails closed unless:
+#   1. bin/chainabit.provenance.json names exactly this bundle and the
+#      CLI <-> API protocol level it requires;
+#   2. the production API advertises at least that level
+#      (GET https://api.chainabit.com/api/v1/cli/compatibility);
+#   3. acceptance/receipt.json is the receipt of the automated acceptance run of
+#      exactly this bundle (every command path executed or classified, every
+#      required journey, zero failures) and its screenshots exist on the
+#      acceptance-receipts branch under <bundle sha256>/.
+# It needs no secret.
+#
+# Runs on every pull request to main and, through publish.yml, before every
+# release. There is no override: a bundle production cannot be shown to serve
+# is not released.
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    name: Bundle is promotable (provenance, production API, acceptance receipt)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+
+      - name: Install only CLI runtime dependencies
+        run: npm install --omit=dev --ignore-scripts --no-package-lock --no-audit --no-fund
+
+      - name: Fetch the acceptance screenshots of this bundle
+        run: |
+          sha="$(sha256sum bin/chainabit.cjs | cut -d' ' -f1)"
+          mkdir -p "$RUNNER_TEMP/acceptance"
+          if git fetch --depth 1 "https://github.com/${GITHUB_REPOSITORY}.git" acceptance-receipts; then
+            git archive FETCH_HEAD "$sha" | tar -x -C "$RUNNER_TEMP/acceptance" \
+              || echo "::warning::No screenshots for bundle $sha on the acceptance-receipts branch."
+          else
+            echo "::warning::No acceptance-receipts branch."
+          fi
+          echo "SCREENSHOTS=$RUNNER_TEMP/acceptance/$sha" >> "$GITHUB_ENV"
+
+      - name: Release gate
+        run: node scripts/release-gate.mjs --screenshots "$SCREENSHOTS" --summary "$GITHUB_STEP_SUMMARY"

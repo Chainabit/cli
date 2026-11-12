@@ -1,0 +1,17 @@
+{
+  "refs": ["origin/main", "origin/development"],
+  "journeys": [
+    "first-start",
+    "sign-in",
+    "message",
+    "slash-commands",
+    "approval",
+    "tool-call",
+    "error-state",
+    "resize",
+    "scroll",
+    "selection",
+    "exit-restore",
+    "update"
+  ]
+}

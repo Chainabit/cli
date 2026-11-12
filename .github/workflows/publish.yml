@@ -8,9 +8,10 @@ name: Release
 # metadata to the protected main branch.
 #
 # Every push to main releases (owner decision 2026-11-02): main is the release branch.
-#   - push to main: runs the documentation contract, command tests, distribution
-#     safety check and smoke test, then `semantic-release`, which publishes only
-#     when the commits since the last release call for one (feat, fix, BREAKING).
+#   - push to main: runs the documentation contract, the release gate, command
+#     tests, distribution safety check and smoke test, then `semantic-release`,
+#     which publishes only when the commits since the last release call for one
+#     (feat, fix, BREAKING).
 #   - workflow_dispatch with dry_run=true (default): the same gates and a dry run.
 #   - workflow_dispatch with dry_run=false: a manual release of main.
 # npm authentication is trusted publishing (OIDC, `id-token: write` below) for
@@ -21,6 +22,13 @@ name: Release
 # chainabit-api's release-cli.yml, which pushes the built bin/chainabit.cjs to
 # this repo's main/development branch) fails loudly here instead of ever
 # reaching npm.
+#
+# The release gate (release-gate.yml, scripts/release-gate.mjs) refuses a bundle
+# that production cannot serve: it compares the protocol level the bundle
+# requires with the level the production API advertises and verifies the
+# acceptance receipt of exactly this bundle. It fails closed and has no
+# override: a push to main while production is behind (or does not advertise a
+# level at all) does not release. Deploy the API first.
 #
 # Required repository secrets:
 #   NPM_TOKEN     — an npm automation token with publish rights to "chainabit".
@@ -69,8 +77,12 @@ jobs:
           LAST="$(git describe --tags --abbrev=0 --match 'v*' HEAD 2>/dev/null || true)"
           if [ -z "$LAST" ]; then echo "no release tag: nothing to compare"; exit 0; fi
           node scripts/check-release-typing.mjs "$LAST" HEAD
+  release-gate:
+    uses: ./.github/workflows/release-gate.yml
+    permissions:
+      contents: read
   release:
-    needs: [documentation-contract, release-typing]
+    needs: [documentation-contract, release-typing, release-gate]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
